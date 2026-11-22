@@ -25,6 +25,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+MAX_TOLERATED_FAILURES = 4  # letture consecutive fallite prima di segnare 'non disponibile'
+
 
 class ZcsCoordinator(DataUpdateCoordinator[dict[int, int]]):
     """Mantiene un dizionario indirizzo -> valore grezzo (u16)."""
@@ -36,6 +38,7 @@ class ZcsCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.client = client
         self._regs: dict[int, int] = {}
         self._slow_at = 0.0
+        self._failures = 0
 
     async def _async_update_data(self) -> dict[int, int]:
         try:
@@ -45,7 +48,15 @@ class ZcsCoordinator(DataUpdateCoordinator[dict[int, int]]):
             if time.monotonic() - self._slow_at > SLOW_REFRESH_SECONDS:
                 await self._refresh_slow()
         except ZcsError as err:
-            raise UpdateFailed(str(err)) from err
+            # Il datalogger ogni tanto non risponde (es. se interrogato anche da altre
+            # integrazioni): per qualche lettura si tengono gli ultimi valori validi.
+            self._failures += 1
+            if self._regs and self._failures <= MAX_TOLERATED_FAILURES:
+                _LOGGER.debug("Lettura fallita (%s/%s), uso gli ultimi valori: %s",
+                              self._failures, MAX_TOLERATED_FAILURES, err)
+                return dict(self._regs)
+            raise UpdateFailed(str(err) or type(err.__cause__).__name__) from err
+        self._failures = 0
         return dict(self._regs)
 
     async def _refresh_slow(self) -> None:

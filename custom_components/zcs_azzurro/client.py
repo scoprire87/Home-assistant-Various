@@ -146,7 +146,7 @@ class ZcsClient:
                     _LOGGER.debug("Tentativo %s fallito: %s", attempt + 1, err)
                     await self.close()
                     await asyncio.sleep(1 + attempt * 2)
-            raise ZcsError(f"comunicazione fallita: {last}") from last
+            raise ZcsError(f"comunicazione fallita: {last!r}") from last
 
     # ------------------------------------------------------------------ Modbus
     async def _read(self, fc: int, address: int, count: int) -> list[int]:

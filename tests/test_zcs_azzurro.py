@@ -207,3 +207,22 @@ async def test_options_flow(hass):
         r["flow_id"], {"sunset_offset": 15, "ai_provider": "ha_text_ai"})
     assert r["type"] == "form" and r["step_id"] == "ha_text_ai", r
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_tolerates_transient_failures(hass):
+    from custom_components.zcs_azzurro.client import ZcsError
+    fake = FakeLogger()
+    entry = await _setup(hass, fake, {})
+    coord = entry.runtime_data.coordinator
+    with patch.object(coord.client, "read_holding", side_effect=ZcsError("timeout")):
+        for _ in range(4):
+            await coord.async_refresh()
+            await hass.async_block_till_done()
+            assert hass.states.get("sensor.zcs_azzurro_batteria_soc").state == "26"
+        await coord.async_refresh()  # quinta lettura fallita consecutiva
+        await hass.async_block_till_done()
+        assert hass.states.get("sensor.zcs_azzurro_batteria_soc").state == "unavailable"
+    await coord.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.zcs_azzurro_batteria_soc").state == "26"
+    await hass.config_entries.async_unload(entry.entry_id)
