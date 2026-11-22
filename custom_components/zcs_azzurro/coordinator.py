@@ -37,7 +37,7 @@ class ZcsCoordinator(DataUpdateCoordinator[dict[int, int]]):
         )
         self.client = client
         self._regs: dict[int, int] = {}
-        self._slow_at = 0.0
+        self._slow_at: float | None = None
         self._failures = 0
 
     async def _async_update_data(self) -> dict[int, int]:
@@ -45,7 +45,7 @@ class ZcsCoordinator(DataUpdateCoordinator[dict[int, int]]):
             for start, qty in RT_BLOCKS:
                 values = await self.client.read_holding(start, qty)
                 self._regs.update({start + i: v for i, v in enumerate(values)})
-            if time.monotonic() - self._slow_at > SLOW_REFRESH_SECONDS:
+            if self._slow_at is None or time.monotonic() - self._slow_at > SLOW_REFRESH_SECONDS:
                 await self._refresh_slow()
         except ZcsError as err:
             # Il datalogger ogni tanto non risponde (es. se interrogato anche da altre

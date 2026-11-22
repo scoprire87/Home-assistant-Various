@@ -319,18 +319,34 @@ class DodManager:
             f"SoC {r.get('soc')}%, sole domani {f.get('ore_sole', ['?'])[0]} h, "
             f"radiazione {f.get('radiazione_kwh_m2', ['?'])[0]} kWh/m2.\n{r['motivazione']}"
         )
-        await self.hass.services.async_call(
-            "persistent_notification", "create",
-            {"notification_id": f"zcs_dod_{self.entry.entry_id}", "title": "ZCS - DoD batteria", "message": msg},
-        )
+        try:
+            await self.hass.services.async_call(
+                "persistent_notification", "create",
+                {"notification_id": f"zcs_dod_{self.entry.entry_id}", "title": "ZCS - DoD batteria", "message": msg},
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Notifica persistente non creata: %s", err)
         target = (self.options.get(CONF_NOTIFY) or "").strip()
         if target:
-            domain, _, service = target.partition(".")
-            if not service:
-                domain, service = "notify", domain
-            try:
+            await self._send_push(target, f"🔋 DoD {r['dod']}%", msg)
+
+    async def _send_push(self, target: str, title: str, msg: str) -> None:
+        """Accetta sia un'azione (notify.mobile_app_xxx) sia un'entita' notify (notify.xxx)."""
+        if "." not in target:
+            target = f"notify.{target}"
+        domain, _, service = target.partition(".")
+        try:
+            if domain == "notify" and self.hass.states.get(target) is not None:
                 await self.hass.services.async_call(
-                    domain, service, {"title": f"🔋 DoD {r['dod']}%", "message": msg}, blocking=True
+                    "notify", "send_message", {"entity_id": target, "title": title, "message": msg}, blocking=True
                 )
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Notifica %s non inviata: %s", target, err)
+            elif self.hass.services.has_service(domain, service):
+                await self.hass.services.async_call(domain, service, {"title": title, "message": msg}, blocking=True)
+            elif self.hass.services.has_service("notify", f"mobile_app_{service}"):
+                await self.hass.services.async_call(
+                    "notify", f"mobile_app_{service}", {"title": title, "message": msg}, blocking=True
+                )
+            else:
+                _LOGGER.warning("Notifica non inviata: '%s' non è né un'entità né un'azione di notifica", target)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Notifica %s non inviata: %s", target, err)

@@ -226,3 +226,22 @@ async def test_tolerates_transient_failures(hass):
     await hass.async_block_till_done()
     assert hass.states.get("sensor.zcs_azzurro_batteria_soc").state == "26"
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_notify_entity_or_action(hass, aioclient_mock):
+    from pytest_homeassistant_custom_component.common import async_mock_service
+    aioclient_mock.get("https://api.open-meteo.com/v1/forecast", json=OPEN_METEO)
+    send_msg = async_mock_service(hass, "notify", "send_message")
+    legacy = async_mock_service(hass, "notify", "mobile_app_mio_telefono")
+    hass.states.async_set("notify.mio_telefono", "unknown")
+    fake = FakeLogger()
+    # 1) entita' notify
+    entry = await _setup(hass, fake, {"notify_service": "notify.mio_telefono"})
+    await hass.services.async_call(DOMAIN, "valuta_dod", {"notifica": True}, blocking=True, return_response=True)
+    assert len(send_msg) == 1 and send_msg[0].data["entity_id"] == "notify.mio_telefono"
+    # 2) azione legacy
+    hass.config_entries.async_update_entry(entry, options={"notify_service": "notify.mobile_app_mio_telefono"})
+    await hass.async_block_till_done()
+    await hass.services.async_call(DOMAIN, "valuta_dod", {"notifica": True}, blocking=True, return_response=True)
+    assert len(legacy) == 1 and "DoD" in legacy[0].data["title"]
+    await hass.config_entries.async_unload(entry.entry_id)
