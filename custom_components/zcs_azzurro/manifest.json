@@ -1,0 +1,13 @@
+{
+  "domain": "zcs_azzurro",
+  "name": "ZCS Azzurro (ibrido)",
+  "after_dependencies": ["ai_task", "conversation", "ha_text_ai", "notify"],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/scoprire87/Home-assistant-Various",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/scoprire87/Home-assistant-Various/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

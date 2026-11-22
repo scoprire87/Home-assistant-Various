@@ -1,0 +1,14 @@
+valuta_dod:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: zcs_azzurro
+    applica:
+      default: false
+      selector:
+        boolean:
+    notifica:
+      default: false
+      selector:
+        boolean:

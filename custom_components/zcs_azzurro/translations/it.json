@@ -1,0 +1,95 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ZCS Azzurro - datalogger Wi-Fi",
+        "description": "Dati del datalogger Wi-Fi dell'inverter (protocollo Solarman V5). Li trovi nella configurazione dell'integrazione Solarman o sull'etichetta del datalogger.",
+        "data": {
+          "host": "Indirizzo IP del datalogger",
+          "port": "Porta",
+          "serial": "Numero di serie del datalogger",
+          "slave": "Indirizzo Modbus inverter",
+          "scan_interval": "Intervallo di lettura (secondi)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile comunicare con il datalogger/inverter. Controlla IP, porta e seriale.",
+      "unknown": "Errore imprevisto"
+    },
+    "abort": {
+      "already_configured": "Questo datalogger è già configurato"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "DoD automatico",
+        "description": "Notifiche, orario e fornitore di intelligenza artificiale per la decisione del DoD. La modalità (IA / Soglie / Manuale) e le soglie si cambiano dalle entità del dispositivo.",
+        "data": {
+          "notify_service": "Servizio di notifica (es. notify.mobile_app_mio_telefono)",
+          "sunset_offset": "Minuti prima del tramonto",
+          "ai_provider": "Fornitore IA"
+        }
+      },
+      "ai_task": {
+        "title": "IA: AI Task",
+        "data": {
+          "ai_entity": "Entità AI Task (es. Google Gemini, OpenAI…)"
+        }
+      },
+      "ha_text_ai": {
+        "title": "IA: HA Text AI",
+        "data": {
+          "ai_entity": "Istanza HA Text AI"
+        }
+      },
+      "conversation": {
+        "title": "IA: agente di conversazione",
+        "data": {
+          "ai_entity": "Agente di conversazione"
+        }
+      },
+      "openai_compatibile": {
+        "title": "IA: API compatibile OpenAI",
+        "description": "Per DeepSeek usa https://api.deepseek.com; per OpenAI https://api.openai.com/v1; per Groq https://api.groq.com/openai/v1.",
+        "data": {
+          "ai_base_url": "URL base API",
+          "ai_api_key": "Chiave API",
+          "ai_model": "Modello"
+        }
+      }
+    }
+  },
+  "selector": {
+    "ai_provider": {
+      "options": {
+        "nessuna": "Nessuna (usa solo le soglie)",
+        "ai_task": "AI Task di Home Assistant (Google, OpenAI, Anthropic, Ollama…)",
+        "ha_text_ai": "HA Text AI",
+        "conversation": "Agente di conversazione",
+        "openai_compatibile": "API compatibile OpenAI (DeepSeek, OpenAI, Groq…)"
+      }
+    }
+  },
+  "services": {
+    "valuta_dod": {
+      "name": "Valuta DoD",
+      "description": "Calcola il DoD per domani e, se richiesto, lo applica.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Inverter",
+          "description": "Voce di configurazione (opzionale)."
+        },
+        "applica": {
+          "name": "Applica",
+          "description": "Scrive il valore sull'inverter."
+        },
+        "notifica": {
+          "name": "Notifica",
+          "description": "Invia la notifica con l'esito."
+        }
+      }
+    }
+  }
+}
