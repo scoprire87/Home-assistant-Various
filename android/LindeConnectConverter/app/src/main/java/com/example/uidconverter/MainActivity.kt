@@ -65,6 +65,12 @@ import java.util.Locale
 /** Ultimo UID letto via NFC (esadecimale maiuscolo). */
 var scannedUid: MutableState<String> = mutableStateOf("")
 
+/** UID che il prossimo tag avvicinato deve ricevere (modalità scrittura); null = lettura normale. */
+var pendingWriteUid: MutableState<String?> = mutableStateOf(null)
+
+/** Messaggio della finestra di scrittura; null = finestra chiusa. */
+var writeStatus: MutableState<String?> = mutableStateOf(null)
+
 class MainActivity : ComponentActivity() {
 
     private var nfcAdapter: NfcAdapter? = null
@@ -113,7 +119,23 @@ class MainActivity : ComponentActivity() {
                 @Suppress("DEPRECATION")
                 intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
             }
-            tag?.let { t -> scannedUid.value = t.id.joinToString("") { "%02X".format(it) } }
+            tag ?: return
+            val target = pendingWriteUid.value
+            if (target != null) {
+                writeStatus.value = "Scrittura in corso… tieni fermo il tag."
+                Thread {
+                    val res = writeUidToMagicTag(tag, target)
+                    runOnUiThread {
+                        pendingWriteUid.value = null
+                        writeStatus.value = when (res) {
+                            is WriteResult.Success -> "✅ Fatto! La magic card ora risponde con UID ${res.uid}. Ripeti su un altro tag per farne una copia."
+                            is WriteResult.Error -> "❌ ${res.message}"
+                        }
+                    }
+                }.start()
+            } else {
+                scannedUid.value = tag.id.joinToString("") { "%02X".format(it) }
+            }
         }
     }
 }
@@ -209,6 +231,22 @@ fun App() {
                 }) { Text("Importa") }
             },
             dismissButton = { TextButton(onClick = { backupLetto = null }) { Text("Annulla") } }
+        )
+    }
+
+    // --- Finestra di scrittura su magic card ---
+    val wStatus by writeStatus
+    wStatus?.let { msg ->
+        val inCorso = pendingWriteUid.value != null
+        AlertDialog(
+            onDismissRequest = { pendingWriteUid.value = null; writeStatus.value = null },
+            title = { Text("Scrivi su magic card") },
+            text = { Text(msg) },
+            confirmButton = {
+                TextButton(onClick = { pendingWriteUid.value = null; writeStatus.value = null }) {
+                    Text(if (inCorso) "Annulla" else "Chiudi")
+                }
+            }
         )
     }
 
@@ -418,10 +456,14 @@ private fun DettaglioCliente(cliente: Cliente, onBack: () -> Unit) {
                         Text("Linde: ${tag.linde}", fontFamily = FontFamily.Monospace)
                     }
                     TextButton(onClick = {
+                        pendingWriteUid.value = tag.uid
+                        writeStatus.value = "Avvicina una magic card (13,56 MHz) al telefono per scrivervi l'UID ${tag.uid}…"
+                    }) { Text("📝") }
+                    TextButton(onClick = {
                         cliente.tags.remove(tag)
                         saveClient(context, cliente)
                     }) { Text("🗑") }
-                }
+}
             }
         }
     }

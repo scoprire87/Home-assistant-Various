@@ -15,6 +15,11 @@ Progetto ricostruito dall'APK `app-debug.apk` (v1.0) con in più:
   al suo interno, dump PostgreSQL) e aggiunge a un cliente tutti i conducenti attivi con badge RFID:
   operatore = nome e cognome, codice Linde = `rfid_type` in esadecimale (99 → `63`) + `rfid_code`
   in esadecimale, UID = gli stessi byte in ordine inverso.
+- **Scrivi su tag (📝)** – accanto a ogni voce salvata, scrive il suo UID su una **magic card
+  MIFARE Classic gen2/CUID a 13,56 MHz**. Serve per creare un tag con un UID scelto (p.es. un
+  tag "tecnico" condiviso) da registrare poi in connect:desk. Funziona solo con UID a 4 byte,
+  solo con magic card gen2/CUID e solo su telefoni che supportano MIFARE Classic (chip NXP);
+  sugli altri telefoni usa un Flipper Zero o un Proxmark.
 
 ## Formato del file esportato
 
