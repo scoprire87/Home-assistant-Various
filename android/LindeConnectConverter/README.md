@@ -11,6 +11,10 @@ Progetto ricostruito dall'APK `app-debug.apk` (v1.0) con in più:
   Accetta anche i singoli file `<cliente>.json` creati dalla versione 1.0.
 - **Inserimento manuale** – nella scheda di un cliente si può scrivere l'UID (es. `AA:BB:CC:DD`)
   oppure il codice Linde (es. `63DDCCBBAA`); l'altro valore viene calcolato automaticamente.
+- **Importa conducenti da backup connect:desk** – legge direttamente il backup `.zip` (o il `.dmp`
+  al suo interno, dump PostgreSQL) e aggiunge a un cliente tutti i conducenti attivi con badge RFID:
+  operatore = nome e cognome, codice Linde = `rfid_type` in esadecimale (99 → `63`) + `rfid_code`
+  in esadecimale, UID = gli stessi byte in ordine inverso.
 
 ## Formato del file esportato
 
@@ -29,6 +33,9 @@ Progetto ricostruito dall'APK `app-debug.apk` (v1.0) con in più:
 
 Apri la cartella in Android Studio e premi *Run*, oppure `gradle assembleDebug`
 (richiede Android SDK 36). L'APK finisce in `app/build/outputs/apk/debug/`.
+
+Test: `./gradlew testDebugUnitTest -Pbackup=/percorso/backup.zip` verifica anche la lettura di un
+backup reale (i backup non vanno messi nel repository: contengono dati personali).
 
 > Se la versione 1.0 è stata installata da un altro PC/Android Studio, la firma di debug è
 > diversa: bisogna disinstallarla prima, e i dati salvati andrebbero persi. Compilando con lo

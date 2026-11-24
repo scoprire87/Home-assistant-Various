@@ -7,6 +7,7 @@ import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -44,6 +45,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.uidconverter.ui.theme.UIDConverterTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -155,6 +160,58 @@ fun App() {
         }.onFailure { toast(context, "File non valido: ${it.message}") }
     }
 
+    // --- Importa conducenti da un backup connect:desk (.zip o .dmp) ---
+    val scope = rememberCoroutineScope()
+    var caricamento by remember { mutableStateOf(false) }
+    var backupLetto by remember { mutableStateOf<Pair<String, List<Conducente>>?>(null) }
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        caricamento = true
+        scope.launch {
+            val res = withContext(Dispatchers.IO) {
+                runCatching {
+                    val nomeFile = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }.orEmpty()
+                    val lista = context.contentResolver.openInputStream(uri)!!.use {
+                        conducentiDaBackup(PgDumpReader.fromStream(it))
+                    }
+                    nomeClienteDaFile(nomeFile) to lista
+                }
+            }
+            caricamento = false
+            res.onSuccess { backupLetto = it }
+                .onFailure { toast(context, "Backup non leggibile: ${it.message}") }
+        }
+    }
+
+    backupLetto?.let { (nomeSuggerito, conducenti) ->
+        var nome by remember(backupLetto) { mutableStateOf(nomeSuggerito) }
+        AlertDialog(
+            onDismissRequest = { backupLetto = null },
+            title = { Text("Importa ${conducenti.size} conducenti") },
+            text = {
+                Column {
+                    Text("Trovati ${conducenti.size} conducenti attivi con badge RFID. In quale cliente vuoi salvarli?")
+                    Spacer(Modifier.height(8.dp))
+                    TextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome cliente") }, singleLine = true)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = nome.isNotBlank(), onClick = {
+                    val tags = androidx.compose.runtime.mutableStateListOf<TagItem>()
+                    conducenti.forEach { tags.add(TagItem(it.uid, it.nome, it.linde)) }
+                    val (nuovaLista, r) = mergeImport(context, clienti, listOf(Cliente(nome.trim(), tags)))
+                    clienti = nuovaLista
+                    backupLetto = null
+                    toast(context, "Importati ${r.tagNuovi} codici (${conducenti.size - r.tagNuovi} già presenti)")
+                }) { Text("Importa") }
+            },
+            dismissButton = { TextButton(onClick = { backupLetto = null }) { Text("Annulla") } }
+        )
+    }
+
     BackHandler(enabled = screen == "dettaglio") {
         screen = "clienti"
         clienteSelezionato = null
@@ -190,7 +247,9 @@ fun App() {
                     val data = SimpleDateFormat("yyyyMMdd_HHmm", Locale.ROOT).format(Date())
                     exportLauncher.launch("linde_clienti_$data.json")
                 },
-                onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
+                onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
+                onImportBackup = { backupLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")) },
+                caricamento = caricamento
             )
         }
     }
@@ -203,7 +262,9 @@ private fun ListaClienti(
     onOpen: (Cliente) -> Unit,
     onDelete: (Cliente) -> Unit,
     onExport: () -> Unit,
-    onImport: () -> Unit
+    onImport: () -> Unit,
+    onImportBackup: () -> Unit,
+    caricamento: Boolean
 ) {
     var nomeCliente by remember { mutableStateOf("") }
     var daEliminare by remember { mutableStateOf<Cliente?>(null) }
@@ -228,6 +289,9 @@ private fun ListaClienti(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(onClick = onExport, modifier = Modifier.weight(1f)) { Text("Esporta DB") }
         OutlinedButton(onClick = onImport, modifier = Modifier.weight(1f)) { Text("Importa DB") }
+    }
+    OutlinedButton(onClick = onImportBackup, enabled = !caricamento, modifier = Modifier.fillMaxWidth()) {
+        Text(if (caricamento) "Lettura backup in corso…" else "Importa conducenti da backup connect:desk")
     }
     Spacer(Modifier.height(12.dp))
 
@@ -362,3 +426,10 @@ private fun DettaglioCliente(cliente: Cliente, onBack: () -> Unit) {
         }
     }
 }
+
+/** "backup_tricom_08_10_25.zip" -> "tricom" */
+private fun nomeClienteDaFile(nomeFile: String): String =
+    nomeFile.substringBeforeLast('.')
+        .removePrefix("backup_")
+        .replace(Regex("""[_-]\d{2}[_-]\d{2}[_-]\d{2,4}$"""), "")
+        .ifEmpty { "Backup" }
