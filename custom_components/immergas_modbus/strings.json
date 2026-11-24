@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Immergas Magis Combo (Modbus)",
+        "description": "Connessione al gateway Modbus-WiFi (es. Elfin EW11) sul bus BMS della caldaia.",
+        "data": {
+          "host": "Indirizzo IP del gateway",
+          "port": "Porta TCP",
+          "slave": "Indirizzo Modbus (slave id)",
+          "scan_interval": "Intervallo di lettura (secondi)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile leggere dalla caldaia: controlla IP, porta, slave id e il cablaggio RS485.",
+      "unknown": "Errore imprevisto."
+    },
+    "abort": {
+      "already_configured": "Questo dispositivo è già configurato."
+    }
+  }
+}

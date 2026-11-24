@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Immergas Magis Combo (Modbus)",
+        "description": "Connection to the Modbus-WiFi gateway (e.g. Elfin EW11) on the boiler's BMS bus.",
+        "data": {
+          "host": "Gateway IP address",
+          "port": "TCP port",
+          "slave": "Modbus address (slave id)",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not read from the boiler: check IP, port, slave id and the RS485 wiring.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}
